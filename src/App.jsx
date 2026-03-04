@@ -234,8 +234,8 @@ export default function App() {
   const [modal,      setModal]      = useState(null)
   const [notif,      setNotif]      = useState(null)
   const [adminTab,   setAdminTab]   = useState('coins')
-  const localUser    = useRef(null)   // 로그인한 사용자 ID (로컬 세션)
-  const localAdmin   = useRef(false)  // 관리자 여부 (로컬 세션)
+  const [localUser,  setLocalUser]  = useState(() => localStorage.getItem('gratitude-coin-user-id'))
+  const [localAdmin, setLocalAdmin] = useState(() => localStorage.getItem('gratitude-coin-admin') === 'true')
 
   // ── 로그인 폼 ──
   const [loginEmail,  setLoginEmail]  = useState('')
@@ -334,8 +334,8 @@ export default function App() {
 
   // ── 편의 변수 ──────────────────────────────────────────────────────────────
   const { members, transactions, allotments, distributed } = appState
-  const isAdmin    = localAdmin.current
-  const currentUser= members.find(m=>m.id===localUser.current) ?? null
+  const isAdmin    = localAdmin
+  const currentUser= members.find(m=>m.id===localUser) ?? null
   const cm         = getCurrentMonth()
   const [yr, mo]   = cm.split('-')
   const lastDay    = getLastDay(cm)
@@ -362,23 +362,29 @@ export default function App() {
       return
     }
     persist({ members: members.map(x=>x.id===m.id?{...x,failedAttempts:0,locked:false}:x) })
-    localUser.current  = m.id
-    localAdmin.current = false
+    localStorage.setItem('gratitude-coin-user-id', m.id)
+    setLocalUser(m.id)
+    localStorage.setItem('gratitude-coin-admin', 'false')
+    setLocalAdmin(false)
     closeModal()
     notify(`${m.name}님, 환영합니다! 🪙`)
   }
 
   const doAdminLogin = () => {
     if (adminPw !== appState.adminPassword) { setAdminPwErr(true); return }
-    localUser.current  = null
-    localAdmin.current = true
+    localStorage.removeItem('gratitude-coin-user-id')
+    setLocalUser(null)
+    localStorage.setItem('gratitude-coin-admin', 'true')
+    setLocalAdmin(true)
     closeModal(); setView('admin')
     notify('관리자 로그인 성공 🔑')
   }
 
   const logout = () => {
-    localUser.current  = null
-    localAdmin.current = false
+    localStorage.removeItem('gratitude-coin-user-id')
+    setLocalUser(null)
+    localStorage.removeItem('gratitude-coin-admin')
+    setLocalAdmin(false)
     setView('home')
     notify('로그아웃 되었습니다.')
   }
@@ -401,8 +407,10 @@ export default function App() {
     if (!regFound)              { setRegErr('처음부터 다시 시도해주세요.'); return }
     const next = members.map(m=>m.id===regFound.id?{...m,password:regPw,registeredAt:todayStr(),failedAttempts:0,locked:false}:m)
     persist({ members: next })
-    localUser.current  = regFound.id
-    localAdmin.current = false
+    localStorage.setItem('gratitude-coin-user-id', regFound.id)
+    setLocalUser(regFound.id)
+    localStorage.setItem('gratitude-coin-admin', 'false')
+    setLocalAdmin(false)
     closeModal()
     notify(`${regFound.name}님, 가입을 환영합니다! 🎉`)
   }
@@ -680,8 +688,7 @@ export default function App() {
             onClick={()=>{if(t.adm&&!isAdmin)return;setView(t.id)}}>
             <span style={{fontSize:17}}>{t.ic}</span><span style={{fontSize:10}}>{t.l}</span>
           </button>
-        ))}
-      </nav>
+        ))}</nav>
 
       {/* ── 메인 ── */}
       <main style={S.main}>
