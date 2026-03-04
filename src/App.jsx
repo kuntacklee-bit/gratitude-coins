@@ -185,7 +185,11 @@ function useInstallPrompt() {
     if (outcome === 'accepted') setPrompt(null)
   }
 
-  return { prompt, isInstalled, install }
+  const dismiss = () => {
+    setPrompt(null)
+  }
+
+  return { prompt, isInstalled, install, dismiss }
 }
 
 
@@ -225,7 +229,7 @@ function IOSInstallBanner() {
 export default function App() {
   const [appState,   setAppState]   = useState(null)
   const [syncing,    setSyncing]    = useState(false)  // 저장 중 표시
-  const { prompt: installPrompt, isInstalled, install } = useInstallPrompt()
+  const { prompt: installPrompt, isInstalled, install, dismiss } = useInstallPrompt()
   const [view,       setView]       = useState('home')
   const [modal,      setModal]      = useState(null)
   const [notif,      setNotif]      = useState(null)
@@ -273,7 +277,7 @@ export default function App() {
         setAppState({
           ...INIT_STATE,
           ...data,
-          members: (data.members || INIT_STATE.members).map((m,i) => ({
+          members: (data.members || []).map((m,i) => ({
             failedAttempts: 0, locked: false,
             avatar: AVATARS[i % AVATARS.length],
             ...m,
@@ -540,9 +544,10 @@ export default function App() {
             style={{background:'linear-gradient(135deg,#f59e0b,#d97706)',border:'none',borderRadius:10,padding:'9px 18px',color:'#1a0a00',fontWeight:800,fontSize:13,cursor:'pointer',whiteSpace:'nowrap'}}>
             설치
           </button>
-          <button onClick={()=>setPrompt&&null}
-            style={{background:'transparent',border:'none',color:'#78350f',cursor:'pointer',fontSize:18,padding:'4px 8px'}}
-            onClick={()=>{ document.querySelector('[data-install-banner]')?.remove() }}>✕</button>
+          <button onClick={dismiss}
+            style={{background:'transparent',border:'none',color:'#78350f',cursor:'pointer',fontSize:18,padding:'4px 8px'}}>
+            ✕
+          </button>
         </div>
       )}
 
@@ -875,7 +880,7 @@ export default function App() {
                       <h3 style={S.cTitle}>➕ 신규 회원 추가</h3>
                       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
                         <div><label style={S.lbl}>이름</label><input style={S.inp} placeholder="홍길동" value={newMbr.name} onChange={e=>setNewMbr({...newMbr,name:e.target.value})} /></div>
-                        <div><label style={S.lbl}>이메일</label><input style={S.inp} type="email" placeholder="hong@co.com" value={newMbr.email} onChange={e=>setNewMbr({...newMbr,email:e.target.value})} /></div>
+                        <div><label style={S.lbl}>이메일</label><input style={S.inp} type="email" placeholder="hong@company.com" value={newMbr.email} onChange={e=>setNewMbr({...newMbr,email:e.target.value})} /></div>
                         <div><label style={S.lbl}>팀</label><input style={S.inp} placeholder="개발팀" value={newMbr.team} onChange={e=>setNewMbr({...newMbr,team:e.target.value})} /></div>
                         <div><label style={S.lbl}>파트</label><input style={S.inp} placeholder="프론트엔드" value={newMbr.part} onChange={e=>setNewMbr({...newMbr,part:e.target.value})} onKeyDown={e=>e.key==='Enter'&&addMember()} /></div>
                       </div>
