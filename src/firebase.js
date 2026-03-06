@@ -8,13 +8,12 @@ import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey:            "여기에-API-KEY-입력",
-  authDomain:        "여기에-AUTH-DOMAIN-입력",
-  projectId:         "여기에-PROJECT-ID-입력",
-  storageBucket:     "여기에-STORAGE-BUCKET-입력",
-  messagingSenderId: "여기에-MESSAGING-SENDER-ID-입력",
-  appId:             "여기에-APP-ID-입력",
+  apiKey: "AIzaSyBFVdj77MHO9WxVLOUgDEyl2XolGftcFjs",
+  authDomain: "gratitude-coin.firebaseapp.com",
+  projectId: "gratitude-coin",
+  storageBucket: "gratitude-coin.firebasestorage.app",
+  messagingSenderId: "109486789872",
+  appId: "1:109486789872:web:5978a0a87cbf103a2b5e35"
 }
-
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
