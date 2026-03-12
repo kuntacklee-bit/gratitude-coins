@@ -1,8 +1,9 @@
+
 import { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import { db } from './firebase'
 import {
-  doc, onSnapshot, setDoc, getDoc
+  doc, onSnapshot, setDoc, getDoc, updateDoc
 } from 'firebase/firestore'
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
@@ -310,7 +311,9 @@ export default function App() {
     setAppState(next)
     setSyncing(true)
     try {
-      await setDoc(DOC_REF, next)
+      // 전체 문서를 덮어쓰는 대신, 변경된 필드만 업데이트합니다.
+      // 이렇게 하면 여러 기기에서 동시에 수정할 때 데이터 충돌을 방지할 수 있습니다.
+      await updateDoc(DOC_REF, partial)
     } catch(e) {
       notify('저장 오류가 발생했습니다.', 'err')
     }
@@ -366,11 +369,13 @@ export default function App() {
     if (m.password !== loginPw) {
       const fails   = (m.failedAttempts??0)+1
       const nowLock = fails >= MAX_FAIL
-      persist({ members: members.map(x=>x.id===m.id?{...x,failedAttempts:fails,locked:nowLock}:x) })
+      const updatedMembers = members.map(x=>x.id===m.id?{...x,failedAttempts:fails,locked:nowLock}:x)
+      persist({ members: updatedMembers })
       setLoginErr(nowLock ? '비밀번호 5회 오류. 계정이 잠겼습니다.' : `비밀번호 오류 (${MAX_FAIL-fails}회 남음)`)
       return
     }
-    persist({ members: members.map(x=>x.id===m.id?{...x,failedAttempts:0,locked:false}:x) })
+    const updatedMembers = members.map(x=>x.id===m.id?{...x,failedAttempts:0,locked:false}:x)
+    persist({ members: updatedMembers })
     localStorage.setItem('gratitude-coin-user-id', m.id)
     setLocalUser(m.id)
     localStorage.setItem('gratitude-coin-admin', 'false')
@@ -437,9 +442,20 @@ export default function App() {
     if (userResetOldPw !== currentUser.password) { setUserResetErr('현재 비밀번호가 올바르지 않습니다.'); return }
     if (!userResetNewPw || userResetNewPw.length < 4) { setUserResetErr('새 비밀번호는 4자 이상이어야 합니다.'); return }
     if (userResetNewPw !== userResetNewPw2) { setUserResetErr('새 비밀번호가 일치하지 않습니다.'); return }
-    persist({ members: members.map(m => m.id === currentUser.id ? {...m, password: userResetNewPw} : m) });
+    const updatedMembers = members.map(m => m.id === currentUser.id ? {...m, password: userResetNewPw} : m)
+    persist({ members: updatedMembers });
     closeModal();
     notify('비밀번호가 변경되었습니다.');
+  }
+
+  const doResetAllData = () => {
+    persist({
+      transactions: [],
+      allotments: {},
+      distributed: {},
+    });
+    closeModal();
+    notify('모든 코인 관련 데이터(이력, 지급, 보유량)가 초기화되었습니다.');
   }
 
   // ── 관리자: 회원 관리 ────────────────────────────────────────────────────
@@ -460,13 +476,15 @@ export default function App() {
   }
 
   const unlockMember = id => {
-    persist({ members: members.map(m=>m.id===id?{...m,failedAttempts:0,locked:false}:m) })
+    const updatedMembers = members.map(m=>m.id===id?{...m,failedAttempts:0,locked:false}:m)
+    persist({ members: updatedMembers })
     notify('잠금이 해제되었습니다.')
   }
 
   const doResetPw = () => {
     if (!resetPw||resetPw.length<4) { notify('4자 이상 입력해주세요.','err'); return }
-    persist({ members: members.map(m=>m.id===resetId?{...m,password:resetPw,failedAttempts:0,locked:false}:m) })
+    const updatedMembers = members.map(m=>m.id===resetId?{...m,password:resetPw,failedAttempts:0,locked:false}:m)
+    persist({ members: updatedMembers })
     closeModal(); notify('비밀번호가 재설정되었습니다.')
   }
 
@@ -691,6 +709,19 @@ export default function App() {
 					</div>
 				</div>
 			)}
+
+      {/* ── 전체 데이터 초기화 모달 ── */}
+      {modal==='resetHistory' && (
+        <div style={S.overlay} onClick={closeModal}>
+          <div style={S.card2} onClick={e=>e.stopPropagation()}>
+            <div style={S.mIcon}>🗑️</div>
+            <h2 style={{...S.mTitle,color:'#f87171'}}>전체 데이터 초기화</h2>
+            <p style={S.mSub}>정말로 모든 코인 관련 데이터(거래 이력, 지급 내역, 보유량)를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
+            <button style={{...S.btn,background:'linear-gradient(135deg,#ef4444,#dc2626)'}} onClick={doResetAllData}>확인, 모든 데이터 삭제</button>
+            <button style={S.btnLink} onClick={closeModal}>취소</button>
+          </div>
+        </div>
+      )}
 
       {/* ── 헤더 ── */}
       <header style={S.header}>
@@ -990,11 +1021,18 @@ export default function App() {
 
                 {/* ── 설정 탭 ── */}
                 {adminTab==='settings' && (
-                  <div style={S.card}>
-                    <h3 style={{...S.cTitle,color:'#f87171'}}>🔑 관리자 비밀번호 변경</h3>
-                    <p style={{fontSize:12,color:'#92400e',margin:'0 0 14px'}}>현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.</p>
-                    <button style={{...S.btn,background:'linear-gradient(135deg,#ef4444,#dc2626)'}} onClick={()=>setModal('adminChangePw')}>🔑 비밀번호 변경하기</button>
-                  </div>
+                  <>
+                    <div style={S.card}>
+                      <h3 style={{...S.cTitle,color:'#f87171'}}>🔑 관리자 비밀번호 변경</h3>
+                      <p style={{fontSize:12,color:'#92400e',margin:'0 0 14px'}}>현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.</p>
+                      <button style={{...S.btn,background:'linear-gradient(135deg,#ef4444,#dc2626)'}} onClick={()=>setModal('adminChangePw')}>🔑 비밀번호 변경하기</button>
+                    </div>
+                    <div style={S.card}>
+                      <h3 style={{...S.cTitle,color:'#f87171'}}>🔄 전체 데이터 초기화</h3>
+                      <p style={{fontSize:12,color:'#92400e',margin:'0 0 14px'}}>모든 코인 관련 데이터(거래 이력, 지급 내역, 보유량)를 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없습니다.</p>
+                      <button style={{...S.btn,background:'linear-gradient(135deg,#ef4444,#dc2626)'}} onClick={()=>setModal('resetHistory')}>🔄 전체 데이터 초기화</button>
+                    </div>
+                  </>
                 )}
               </>
             )}
