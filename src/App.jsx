@@ -258,6 +258,14 @@ export default function App() {
   const [adminChgNew, setAdminChgNew] = useState('')
   const [adminChgNew2,setAdminChgNew2]= useState('')
   const [adminChgErr, setAdminChgErr] = useState('')
+  const [mbrChgOld,  setMbrChgOld]  = useState('')
+  const [mbrChgNew,  setMbrChgNew]  = useState('')
+  const [mbrChgNew2, setMbrChgNew2] = useState('')
+  const [mbrChgErr,  setMbrChgErr]  = useState('')
+	const [userResetOldPw, setUserResetOldPw] = useState('');
+	const [userResetNewPw, setUserResetNewPw] = useState('');
+	const [userResetNewPw2, setUserResetNewPw2] = useState('');
+	const [userResetErr, setUserResetErr] = useState('');
   // ── 관리자 패널 ──
   const [bulkDefault,   setBulkDefault]   = useState(3)
   const [customCoins,   setCustomCoins]   = useState({})
@@ -322,6 +330,7 @@ export default function App() {
     setAdminPw(''); setAdminPwErr(false)
     setResetId(null); setResetPw('')
     setAdminChgOld(''); setAdminChgNew(''); setAdminChgNew2(''); setAdminChgErr('')
+		setUserResetOldPw(''); setUserResetNewPw(''); setUserResetNewPw2(''); setUserResetErr('');
   }
 
   if (!appState) return (
@@ -424,6 +433,15 @@ export default function App() {
     closeModal(); notify('관리자 비밀번호가 변경되었습니다. 🔑')
   }
 
+	const doResetUserPw = () => {
+    if (userResetOldPw !== currentUser.password) { setUserResetErr('현재 비밀번호가 올바르지 않습니다.'); return }
+    if (!userResetNewPw || userResetNewPw.length < 4) { setUserResetErr('새 비밀번호는 4자 이상이어야 합니다.'); return }
+    if (userResetNewPw !== userResetNewPw2) { setUserResetErr('새 비밀번호가 일치하지 않습니다.'); return }
+    persist({ members: members.map(m => m.id === currentUser.id ? {...m, password: userResetNewPw} : m) });
+    closeModal();
+    notify('비밀번호가 변경되었습니다.');
+  }
+
   // ── 관리자: 회원 관리 ────────────────────────────────────────────────────
   const addMember = () => {
     const { name, email, team, part } = newMbr
@@ -506,7 +524,7 @@ export default function App() {
     if (!reg.length) return notify('가입 완료된 회원이 없습니다.','err')
     const newAllot = {...allotments,[distMonth]:{...(allotments[distMonth]||{})}}
     reg.forEach(m=>{
-      const amt = customCoins[m.id]!==undefined ? Number(customCoins[m.id]) : bulkDefault
+      const amt = customCoins[m.id]!==undefined ? Number(customCoins[m.id]) : Number(bulkDefault)||1
       newAllot[distMonth][m.id] = (newAllot[distMonth][m.id]??0)+amt
     })
     persist({ allotments:newAllot, distributed:{...distributed,[distMonth]:{date:todayStr(),defaultAmt:bulkDefault}} })
@@ -627,6 +645,7 @@ export default function App() {
         </div>
       )}
 
+
       {/* ── 관리자 PW 변경 ── */}
       {modal==='adminChangePw' && (
         <div style={S.overlay} onClick={closeModal}>
@@ -643,7 +662,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ── 회원 PW 재설정 ── */}
+      {/* ── 회원 PW 재설정 (관리자) ── */}
       {modal==='resetPw' && (
         <div style={S.overlay} onClick={closeModal}>
           <div style={S.card2} onClick={e=>e.stopPropagation()}>
@@ -656,6 +675,22 @@ export default function App() {
           </div>
         </div>
       )}
+
+			{/* ── 회원 PW 재설정 (본인) ── */}
+			{modal==='resetUserPw' && (
+				<div style={S.overlay} onClick={closeModal}>
+					<div style={S.card2} onClick={e=>e.stopPropagation()}>
+						<div style={S.mIcon}>🔒</div>
+						<h2 style={S.mTitle}>비밀번호 재설정</h2>
+						<Inp label="현재 비밀번호" type="password" value={userResetOldPw} onChange={v=>{setUserResetOldPw(v);setUserResetErr('')}} />
+						<Inp label="새 비밀번호" type="password" placeholder="4자 이상" value={userResetNewPw} onChange={v=>{setUserResetNewPw(v);setUserResetErr('')}} />
+						<Inp label="새 비밀번호 확인" type="password" value={userResetNewPw2} onChange={v=>{setUserResetNewPw2(v);setUserResetErr('')}} onEnter={doResetUserPw} />
+						{userResetErr && <p style={S.errMsg}>{userResetErr}</p>}
+						<button style={S.btn} onClick={doResetUserPw}>변경하기</button>
+						<button style={S.btnLink} onClick={closeModal}>취소</button>
+					</div>
+				</div>
+			)}
 
       {/* ── 헤더 ── */}
       <header style={S.header}>
@@ -671,6 +706,7 @@ export default function App() {
             <><div style={S.adminBadge}>🔑 관리자</div><button style={S.chipBtn} onClick={logout}>로그아웃</button></>
           ) : currentUser ? (
             <><div style={S.coinChip}>{currentUser.avatar} <b style={{color:'#fbbf24',fontSize:13}}>{currentUser.name}</b> · 🪙 <b style={{color:'#fbbf24'}}>{myCoins}</b></div>
+							<button style={S.chipBtn} onClick={()=>setModal('resetUserPw')}>⚙️ 설정</button>
               <button style={{...S.chipBtn,background:'rgba(239,68,68,0.15)',borderColor:'rgba(239,68,68,0.3)',color:'#f87171'}} onClick={logout}>로그아웃</button></>
           ) : (
             <><button style={S.loginBtn} onClick={()=>setModal('login')}>로그인</button>
@@ -717,7 +753,7 @@ export default function App() {
                 {!isDistributed && <div style={S.warnBanner}>⏳ 이번 달 코인이 아직 지급되지 않았습니다.</div>}
                 {myReceived.length>0 && (
                   <div style={S.card}><h3 style={S.cTitle}>💌 받은 감사 메세지</h3>
-                    {myReceived.map(tx=>{const f=members.find(m=>m.id===tx.fromId);return(<div key={tx.id} style={S.txItem}><span style={{fontSize:20}}>{f?.avatar}</span><div style={{flex:1}}><div style={S.txFrom}>{f?.name}</div><div style={S.txMsg}>"{tx.message}"</div><div style={S.txDate}>{fmtDate(tx.date)}</div></div><span>🪙</span></div>)})}
+                    {myReceived.map(tx=>{const f=members.find(m=>m.id===tx.fromId);return(<div key={tx.id} style={S.txItem}><span style={{fontSize:20}}>{f?.avatar}</span><div style={{flex:1}}><div style={S.txFrom}>{f?.name}</div><div style={S.txMsg}>"{tx.message}"</div><div style={S.txDate}>{fmtDate(tx.date)}</div></div><span>🪙</span></div>)})}\
                   </div>
                 )}
                 <button style={S.btn} onClick={()=>setView('send')}>🎁 감사 코인 보내기</button>
@@ -773,11 +809,11 @@ export default function App() {
               : <>
                   <div style={S.card}><h3 style={S.cTitle}>💌 받은 코인 ({myReceived.length})</h3>
                     {myReceived.length===0 ? <p style={{color:'#78350f',fontSize:13}}>아직 없습니다</p>
-                      : myReceived.map(tx=>{const f=members.find(m=>m.id===tx.fromId);return(<div key={tx.id} style={S.txItem}><span style={{fontSize:20}}>{f?.avatar}</span><div style={{flex:1}}><div style={S.txFrom}>{f?.name}님으로부터</div><div style={S.txMsg}>"{tx.message}"</div><div style={S.txDate}>{fmtDate(tx.date)}</div></div><span>🪙</span></div>)})}
+                      : myReceived.map(tx=>{const f=members.find(m=>m.id===tx.fromId);return(<div key={tx.id} style={S.txItem}><span style={{fontSize:20}}>{f?.avatar}</span><div style={{flex:1}}><div style={S.txFrom}>{f?.name}님으로부터</div><div style={S.txMsg}>"{tx.message}"</div><div style={S.txDate}>{fmtDate(tx.date)}</div></div><span>🪙</span></div>)})}\
                   </div>
                   <div style={S.card}><h3 style={S.cTitle}>🎁 보낸 코인 ({mySent.length})</h3>
                     {mySent.length===0 ? <p style={{color:'#78350f',fontSize:13}}>아직 없습니다</p>
-                      : mySent.map(tx=>{const t2=members.find(m=>m.id===tx.toId);return(<div key={tx.id} style={S.txItem}><span style={{fontSize:20}}>{t2?.avatar}</span><div style={{flex:1}}><div style={S.txFrom}>{t2?.name}님에게</div><div style={S.txMsg}>"{tx.message}"</div><div style={S.txDate}>{fmtDate(tx.date)}</div></div><span>🪙</span></div>)})}
+                      : mySent.map(tx=>{const t2=members.find(m=>m.id===tx.toId);return(<div key={tx.id} style={S.txItem}><span style={{fontSize:20}}>{t2?.avatar}</span><div style={{flex:1}}><div style={S.txFrom}>{t2?.name}님에게</div><div style={S.txMsg}>"{tx.message}"</div><div style={S.txDate}>{fmtDate(tx.date)}</div></div><span>🪙</span></div>)})}\
                   </div>
                 </>
             }
@@ -819,7 +855,10 @@ export default function App() {
                   {[{id:'coins',l:'🪙 코인'},{id:'members',l:'👥 회원'},{id:'txHistory',l:'📋 이력'},{id:'stats',l:'📊 통계'},{id:'settings',l:'⚙️ 설정'}].map(t=>(
                     <button key={t.id} style={{flex:'0 0 auto',padding:'9px 12px',border:'none',borderRadius:9,fontWeight:700,fontSize:12,cursor:'pointer',background:adminTab===t.id?'rgba(251,191,36,0.2)':'transparent',color:adminTab===t.id?'#fbbf24':'#78350f',whiteSpace:'nowrap'}}
                       onClick={()=>setAdminTab(t.id)}>{t.l}</button>
-                  ))}
+                  )
+                  
+                               
+                  )}
                 </div>
 
                 {/* ── 코인 탭 ── */}
@@ -831,7 +870,7 @@ export default function App() {
                         <div><label style={S.lbl}>지급 월</label><input type="month" style={{...S.inp,boxSizing:'border-box'}} value={distMonth} onChange={e=>setDistMonth(e.target.value)} /></div>
                         <div><label style={S.lbl}>기본 코인 수</label>
                           <div style={{display:'flex',alignItems:'center',gap:6}}>
-                            <input type="number" min={1} max={99} style={{...S.inp,textAlign:'center',fontSize:20,fontWeight:800,color:'#fbbf24',boxSizing:'border-box'}} value={bulkDefault} onChange={e=>setBulkDefault(Math.max(1,Number(e.target.value)))} />
+                            <input type="number" min={0} max={99} style={{...S.inp,textAlign:'center',fontSize:20,fontWeight:800,color:'#fbbf24',boxSizing:'border-box'}} value={bulkDefault} onChange={e=>setBulkDefault(Math.max(1,Number(e.target.value)))} />
                             <span style={{color:'#92400e',fontSize:13}}>개</span>
                           </div>
                         </div>
