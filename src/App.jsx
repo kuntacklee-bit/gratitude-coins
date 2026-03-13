@@ -737,7 +737,7 @@ export default function App() {
             <><div style={S.adminBadge}>🔑 관리자</div><button style={S.chipBtn} onClick={logout}>로그아웃</button></>
           ) : currentUser ? (
             <><div style={S.coinChip}>{currentUser.avatar} <b style={{color:'#fbbf24',fontSize:13}}>{currentUser.name}</b> · 🪙 <b style={{color:'#fbbf24'}}>{myCoins}</b></div>
-							<button style={S.chipBtn} onClick={()=>setModal('resetUserPw')}>⚙️ 설정</button>
+							<button style={S.chipBtn} onClick={()=>setModal('resetUserPw')}>PW관리</button>
               <button style={{...S.chipBtn,background:'rgba(239,68,68,0.15)',borderColor:'rgba(239,68,68,0.3)',color:'#f87171'}} onClick={logout}>로그아웃</button></>
           ) : (
             <><button style={S.loginBtn} onClick={()=>setModal('login')}>로그인</button>
